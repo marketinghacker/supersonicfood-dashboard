@@ -105,12 +105,17 @@ export default function CreativeCard({ creative, onProductOverride }: CreativeCa
             {creative.engagement.shares > 0 && <span className="text-gray-200">🔗 {creative.engagement.shares}</span>}
           </div>
 
-          <ProductChip
-            adId={creative.id}
-            product={creative.productOverride || creative.product}
-            isOverride={!!creative.productOverride}
-            onOverride={onProductOverride}
-          />
+          <div className="flex items-center gap-2">
+            {creative.productImage && (
+              <img src={creative.productImage} alt={creative.product} className="w-8 h-8 rounded object-cover flex-shrink-0" />
+            )}
+            <ProductChip
+              adId={creative.id}
+              product={creative.productOverride || creative.product}
+              isOverride={!!creative.productOverride}
+              onOverride={onProductOverride}
+            />
+          </div>
         </div>
 
         {/* Sparkline + Actions */}

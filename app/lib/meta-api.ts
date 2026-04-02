@@ -1,6 +1,6 @@
 import { META_BASE_URL } from './config';
 import { getTrafficLight } from './traffic-light';
-import { getProductName } from './product-mapper';
+import { getProductInfo } from './product-mapper';
 import { computeBenchmarks, calculateCQI } from './cqi';
 import type {
   Creative, WeeklyBucket, VideoRetention, SocialEngagement,
@@ -68,7 +68,7 @@ interface RawInsight {
 async function fetchWeeklyInsights(): Promise<RawInsight[]> {
   const until = new Date();
   const since = new Date();
-  since.setDate(since.getDate() - 60);
+  since.setDate(since.getDate() - 90); // 90 days for better lifecycle analysis
 
   const allInsights: RawInsight[] = [];
   let nextUrl: string | null = null;
@@ -218,12 +218,15 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
 // ─── Lifecycle stage calculation ───
 
 function calcLifecycleStage(buckets: WeeklyBucket[], totalSpend: number): LifecycleStage {
-  if (buckets.length < 2) return 'new';
-  if (totalSpend < 200) return 'new'; // Not enough data for lifecycle
-
-  // Only consider weeks with actual spend
   const activeBuckets = buckets.filter(b => b.spend > 0);
-  if (activeBuckets.length < 2) return 'new';
+  const totalWeeks = buckets.length;
+  const activeWeeks = activeBuckets.length;
+
+  // Kreacja z długą historią ale niskim spendem = algorytm jej nie daje
+  if (totalWeeks >= 4 && totalSpend < 300 && activeWeeks <= 2) return 'burned';
+
+  if (activeWeeks < 2) return 'new';
+  if (totalSpend < 100) return 'new';
 
   const recent = activeBuckets.slice(-3);
   const roasValues = recent.map(b => b.roas);
@@ -384,7 +387,8 @@ export async function fetchDashboardData(): Promise<Creative[]> {
 
     // Creative details
     const details = creativeDetails.get(adId);
-    const product = details ? getProductName(details.destinationUrl) : 'Katalog ogólny';
+    const productInfo = details ? getProductInfo(details.destinationUrl) : { name: 'Katalog ogólny', image: '', description: '' };
+    const product = productInfo.name;
 
     creatives.push({
       id: adId,
@@ -405,6 +409,8 @@ export async function fetchDashboardData(): Promise<Creative[]> {
       videoUrl: details?.videoUrl || null,
       imageUrl: details?.imageUrl || null,
       product,
+      productImage: productInfo.image,
+      productDescription: productInfo.description,
       productOverride: null,
       trafficLight,
       trafficLightLabel,

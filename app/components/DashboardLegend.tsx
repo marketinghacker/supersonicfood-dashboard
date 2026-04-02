@@ -79,6 +79,43 @@ export default function DashboardLegend() {
               ))}
             </div>
           </div>
+          {/* CQI */}
+          <div>
+            <h3 className="text-base font-black text-white uppercase tracking-wider mb-3">Creative Quality Index (CQI)</h3>
+            <p className="text-base text-gray-300 font-medium mb-3">
+              Złożony wskaźnik 0-100 oceniający jakość kreacji. Obliczany względem mediany Twojego konta (nie absolutnych progów).
+            </p>
+            <div className="grid grid-cols-5 gap-2 mb-3">
+              {[
+                { w: '40%', label: 'Performance', desc: 'ROAS + CTR + CPC' },
+                { w: '15%', label: 'Hook', desc: 'Siła pierwszych sekund' },
+                { w: '15%', label: 'Storytelling', desc: 'Retencja p50/p75/ThruPlay' },
+                { w: '10%', label: 'Engagement', desc: 'Udostępnienia, zapisy, komentarze' },
+                { w: '20%', label: 'Trwałość', desc: 'Trend ROAS, frequency, skalowalność' },
+              ].map(p => (
+                <div key={p.label} className="bg-gray-900/60 rounded-lg p-3 text-center">
+                  <div className="text-lg font-black text-white">{p.w}</div>
+                  <div className="text-sm font-bold text-gray-200">{p.label}</div>
+                  <div className="text-xs text-gray-400 mt-1">{p.desc}</div>
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {[
+                { range: '90-100', grade: 'A+', label: 'Wyjątkowa', color: 'text-green-300' },
+                { range: '70-89', grade: 'A/B+', label: 'Mocna/Dobra', color: 'text-green-300' },
+                { range: '50-69', grade: 'B/C+', label: 'Solidna/Przeciętna', color: 'text-yellow-300' },
+                { range: '30-49', grade: 'C/D', label: 'Słaba', color: 'text-orange-300' },
+                { range: '0-29', grade: 'F', label: 'Krytyczna', color: 'text-red-300' },
+              ].map(s => (
+                <div key={s.range} className="bg-gray-900/60 rounded-lg p-2 text-center">
+                  <div className={`text-base font-black ${s.color}`}>{s.grade}</div>
+                  <div className="text-xs text-gray-300">{s.range}</div>
+                  <div className="text-xs text-gray-400">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

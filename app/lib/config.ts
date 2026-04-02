@@ -87,6 +87,8 @@ export interface Creative {
   imageUrl: string | null;
   // Product
   product: string;
+  productImage: string;
+  productDescription: string;
   productOverride: string | null;
   // Traffic light
   trafficLight: TrafficLightStatus;
