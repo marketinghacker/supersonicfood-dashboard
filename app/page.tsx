@@ -5,20 +5,23 @@ export default function LoginPage() {
     <main className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
       <div className="text-center space-y-8">
         {/* Logo */}
-        <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
-            SUPERSONIC<span className="text-green-400">FOOD</span>
-          </h1>
-          <p className="mt-2 text-sm text-gray-400">Creative Performance Dashboard</p>
+        <div className="flex flex-col items-center gap-3">
+          <img
+            src="https://supersonicfood.com/cdn/shop/files/desktop_-_flow.png?format=webp&v=1769515948&width=2560"
+            alt="SupersonicFood"
+            className="h-12 w-auto"
+          />
+          <p className="text-sm text-gray-400">Creative Performance Dashboard</p>
         </div>
 
         {/* Login Form */}
         <LoginForm />
 
         {/* Footer */}
-        <p className="text-xs text-gray-600">
-          Powered by <span className="text-gray-400 font-medium">Marketing Hackers</span>
-        </p>
+        <div className="flex items-center justify-center gap-2">
+          <span className="text-xs text-gray-600">Powered by</span>
+          <img src="/mh-logo.png" alt="Marketing Hackers" className="h-4 w-auto opacity-50" />
+        </div>
       </div>
     </main>
   );

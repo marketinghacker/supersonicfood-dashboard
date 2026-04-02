@@ -1,6 +1,8 @@
 import { analyzeCreative } from '../../lib/gemini-analyze';
 import type { Creative } from '../../lib/config';
 
+export const maxDuration = 30;
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -14,9 +16,6 @@ export async function POST(request: Request) {
     return Response.json({ analysis });
   } catch (error) {
     console.error('Analyze API error:', error);
-    return Response.json(
-      { error: 'Błąd analizy AI' },
-      { status: 500 }
-    );
+    return Response.json({ error: 'Błąd analizy AI' }, { status: 500 });
   }
 }

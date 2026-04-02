@@ -10,21 +10,49 @@ export const ROAS_THRESHOLDS = {
 export const MIN_SPEND = 200; // PLN
 export const MIN_IMPRESSIONS = 1000;
 
-export const PERIODS = [
-  { label: '7 dni', days: 7 },
-  { label: '14 dni', days: 14 },
-  { label: '30 dni', days: 30 },
-  { label: '60 dni', days: 60 },
-] as const;
-
-export type Period = (typeof PERIODS)[number];
-
 export type TrafficLightStatus = 'super' | 'good' | 'watch' | 'bad' | 'no_data';
+
+export type LifecycleStage = 'ramping' | 'scaling' | 'peak' | 'fatiguing' | 'burned' | 'new';
+
+export type CreativeType = 'video' | 'image' | 'carousel' | 'unknown';
+
+export type EngagementQuadrant = 'viral_winner' | 'engagement_trap' | 'silent_converter' | 'needs_work' | 'no_data';
+
+export interface WeeklyBucket {
+  dateStart: string;
+  dateStop: string;
+  spend: number;
+  roas: number;
+  impressions: number;
+  cpm: number;
+  ctr: number;
+  conversions: number;
+  revenue: number;
+}
+
+export interface VideoRetention {
+  plays: number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p95: number;
+  avgWatchSeconds: number;
+}
+
+export interface SocialEngagement {
+  reactions: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  engagementScore: number; // (reactions + comments*3 + shares*5) / impressions * 1000
+}
 
 export interface Creative {
   id: string;
   name: string;
   status: string;
+  creativeType: CreativeType;
+  // Totals (last 60 days)
   spend: number;
   impressions: number;
   clicks: number;
@@ -32,11 +60,23 @@ export interface Creative {
   roas: number;
   conversions: number;
   revenue: number;
+  // Media
   thumbnailUrl: string;
   videoUrl: string | null;
   imageUrl: string | null;
-  adCopy: string;
+  // Product
   product: string;
+  productOverride: string | null;
+  // Traffic light (based on total ROAS)
   trafficLight: TrafficLightStatus;
   trafficLightLabel: string;
+  // Lifecycle (based on trend)
+  lifecycleStage: LifecycleStage;
+  // Trend data
+  weeklyBuckets: WeeklyBucket[];
+  // Video retention
+  videoRetention: VideoRetention | null;
+  // Social engagement
+  engagement: SocialEngagement;
+  engagementQuadrant: EngagementQuadrant;
 }

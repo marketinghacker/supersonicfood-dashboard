@@ -1,18 +1,14 @@
-import { NextRequest } from 'next/server';
 import { fetchDashboardData } from '../../lib/meta-api';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
-export async function GET(request: NextRequest) {
-  const days = parseInt(request.nextUrl.searchParams.get('days') || '30');
-  const validDays = [7, 14, 30, 60].includes(days) ? days : 30;
-
+export async function GET() {
   try {
-    const creatives = await fetchDashboardData(validDays);
+    const creatives = await fetchDashboardData();
     return Response.json({
       creatives,
       lastUpdated: new Date().toISOString(),
-      period: validDays,
     });
   } catch (error) {
     console.error('Dashboard API error:', error);

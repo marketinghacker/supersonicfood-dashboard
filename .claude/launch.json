@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": ["/Users/marcinmichalski/Downloads/supersonicfood-dashboard/start-dev.sh"],
+      "port": 3000
+    }
+  ]
+}
