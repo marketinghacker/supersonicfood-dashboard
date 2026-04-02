@@ -1,7 +1,7 @@
 import type { Creative } from './config';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
-const GEMINI_MODEL = 'gemini-2.5-pro-preview-05-06';
+const GEMINI_MODEL = 'gemini-3.1-pro-preview';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 function buildDeepContext(c: Creative): string {
