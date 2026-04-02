@@ -1,6 +1,6 @@
 import { META_BASE_URL } from './config';
 import { getTrafficLight } from './traffic-light';
-import { getProductInfo } from './product-mapper';
+import { getProductInfo, getProductFromName } from './product-mapper';
 import { computeBenchmarks, calculateCQI } from './cqi';
 import type {
   Creative, WeeklyBucket, VideoRetention, SocialEngagement,
@@ -121,6 +121,7 @@ interface CreativeDetail {
   imageUrl: string | null;
   destinationUrl: string;
   creativeType: CreativeType;
+  adCopy: string;
 }
 
 async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, CreativeDetail>> {
@@ -170,15 +171,19 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
           creativeType = 'video';
         }
 
+        let adCopy = '';
+
         if (storySpec?.video_data) {
           const vd = storySpec.video_data;
           destinationUrl = vd.call_to_action?.value?.link || '';
           if (vd.image_url) thumbnailUrl = vd.image_url;
           if (vd.video_id && !videoUrl) videoUrl = vd.video_id;
+          adCopy = vd.message || '';
           creativeType = 'video';
         } else if (storySpec?.link_data) {
           const ld = storySpec.link_data;
           destinationUrl = ld.link || ld.call_to_action?.value?.link || '';
+          adCopy = ld.message || '';
           creativeType = 'image';
         }
 
@@ -198,7 +203,11 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
           }
         }
 
-        result.set(adId, { thumbnailUrl, videoUrl, imageUrl, destinationUrl, creativeType });
+        if (afs?.bodies?.length && !adCopy) {
+          adCopy = afs.bodies.map((b: { text: string }) => b.text).join(' | ');
+        }
+
+        result.set(adId, { thumbnailUrl, videoUrl, imageUrl, destinationUrl, creativeType, adCopy });
       }
     } catch {
       // Continue on batch errors
@@ -271,8 +280,8 @@ function calcEngagementQuadrant(
   spend: number
 ): EngagementQuadrant {
   if (spend < 200) return 'no_data';
-  const highEng = engScore > medianEngScore;
-  const highRoas = roas > medianRoas;
+  const highEng = engScore > medianEngScore * 0.85;
+  const highRoas = roas > medianRoas * 0.85;
   if (highEng && highRoas) return 'viral_winner';
   if (highEng && !highRoas) return 'engagement_trap';
   if (!highEng && highRoas) return 'silent_converter';
@@ -319,6 +328,7 @@ export async function fetchDashboardData(): Promise<Creative[]> {
         cpm: parseFloat(r.cpm) || 0,
         ctr: parseFloat(r.ctr) || 0,
         cpc: parseFloat(r.cpc || '0') || 0,
+        frequency: parseFloat(r.frequency || '0') || 0,
         conversions: parseActionValueMulti(r.actions, ['purchase', 'omni_purchase']),
         revenue,
       };
@@ -387,7 +397,16 @@ export async function fetchDashboardData(): Promise<Creative[]> {
 
     // Creative details
     const details = creativeDetails.get(adId);
-    const productInfo = details ? getProductInfo(details.destinationUrl) : { name: 'Katalog ogólny', image: '', description: '' };
+
+    // 3-step product detection: 1) URL, 2) ad name, 3) fallback
+    let productInfo = details ? getProductInfo(details.destinationUrl) : { name: '', image: '', description: '' };
+    if (!productInfo.name) {
+      // Fallback to ad name parsing
+      productInfo = getProductFromName(name);
+    }
+    if (!productInfo.name) {
+      productInfo = { name: 'Inne / Niesklasyfikowane', image: '', description: '' };
+    }
     const product = productInfo.name;
 
     creatives.push({
@@ -412,6 +431,7 @@ export async function fetchDashboardData(): Promise<Creative[]> {
       productImage: productInfo.image,
       productDescription: productInfo.description,
       productOverride: null,
+      adCopy: details?.adCopy || '',
       trafficLight,
       trafficLightLabel,
       lifecycleStage,

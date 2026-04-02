@@ -150,7 +150,8 @@ export default function DashboardPage() {
         {!loading && !error && (
           <div className="space-y-8">
             {sortedGroups.map(([product, productCreatives]) => (
-              <ProductGroup key={product} product={product} creatives={productCreatives} onProductOverride={handleProductOverride} />
+              <ProductGroup key={product} product={product} creatives={productCreatives} onProductOverride={handleProductOverride}
+                productImage={productCreatives[0]?.productImage} />
             ))}
             {sorted.length === 0 && (
               <div className="text-center py-12"><p className="text-xl font-bold text-gray-200">Brak kreacji video spełniających kryteria</p></div>

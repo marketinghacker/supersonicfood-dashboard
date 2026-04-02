@@ -36,7 +36,7 @@ export default function ProductChip({ adId, product, isOverride, onOverride }: P
     <button onClick={e => { e.stopPropagation(); setEditing(true); }}
       className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-200 hover:text-white transition-colors group"
       title="Kliknij aby zmienić produkt">
-      <span>{isOverride ? '✏️' : '📂'}</span>
+      <span>{isOverride ? '✏️' : '🏷️'}</span>
       <span className="group-hover:underline">{product}</span>
     </button>
   );

@@ -63,7 +63,7 @@ const PRODUCT_CATALOG: Record<string, ProductInfo> = {
   'proteinowy-krem-orzechowy': {
     name: 'Krem Orzechowy Proteinowy',
     image: 'https://cdn.shopify.com/s/files/1/0930/7756/9879/files/Krem-orzechowy-SUPERSONIC-MIX-3-szt-160g.jpg?v=1762779375',
-    description: '19g białka, błonnik, bez cukru, bez oleju palmowego',
+    description: '19g białka, błonnik, bez cukru',
   },
   'krem-orzechowy-keto-low-carb': {
     name: 'Krem Orzechowy Low-Carb',
@@ -73,7 +73,7 @@ const PRODUCT_CATALOG: Record<string, ProductInfo> = {
   'supersonic-food-ready-to-drink': {
     name: 'Ready to Drink',
     image: 'https://cdn.shopify.com/s/files/1/0930/7756/9879/files/miniaturka_RTDx3.jpg?v=1762779375',
-    description: 'Gotowy shake proteinowy, kremowa czekolada',
+    description: 'Gotowy shake proteinowy',
   },
   'supersonic-matcha-glow-gummies': {
     name: 'Matcha Glow Gummies',
@@ -88,7 +88,7 @@ const PRODUCT_CATALOG: Record<string, ProductInfo> = {
   'd3k2-complex': {
     name: 'D3K2 Complex',
     image: 'https://cdn.shopify.com/s/files/1/0930/7756/9879/files/d3k2_-_biale_tlo_-_tabletki.jpg?v=1762779375',
-    description: 'Witamina D3 + K2 w kapsułkach',
+    description: 'Witamina D3 + K2',
   },
   'magnesium-complex': {
     name: 'Magnesium Complex',
@@ -103,47 +103,113 @@ const PRODUCT_CATALOG: Record<string, ProductInfo> = {
   'japan-matcha-kyushu': {
     name: 'Japan Matcha Kyushu',
     image: 'https://cdn.shopify.com/s/files/1/0930/7756/9879/files/freepik_br-73045543_convert.jpg?v=1762779375',
-    description: 'Japońska matcha premium z regionu Kyushu',
-  },
-  'supersonic-food-pl-matcha-aichi-100g': {
-    name: 'Matcha Aichi',
-    image: 'https://cdn.shopify.com/s/files/1/0930/7756/9879/files/Proteinowy-posilek-SUPERSONIC-w-proszku-o-smaku-waniliowych-lodow-420g.jpg?v=1762779375',
-    description: 'Japońska matcha z regionu Aichi',
+    description: 'Japońska matcha premium',
   },
 };
 
+// ─── Name-based product detection (fallback when URL is missing) ───
+
+// Sorted longest-first to match "shape meal" before "shape"
+const NAME_KEYWORDS: Array<[string, string]> = [
+  ['shape meal', 'Protein Shape Meal'],
+  ['protein shape', 'Protein Shape Meal'],
+  ['shape', 'Protein Shape Meal'],
+  ['matcha latte', 'Matcha Latte Collagen'],
+  ['matcha marakuja', 'Matcha Latte Collagen'],
+  ['matcha glow', 'Matcha Glow Gummies'],
+  ['matcha', 'Matcha Latte Collagen'],
+  ['wieniawa', 'Matcha Latte Collagen'],
+  ['collagen beauty', 'Collagen Beauty Drink'],
+  ['beauty collagen', 'Collagen Beauty Drink'],
+  ['beauty drink', 'Collagen Beauty Drink'],
+  ['kolagen', 'Collagen Beauty Drink'],
+  ['detox', 'Body Detox Drink'],
+  ['kreatyna', 'Flow Creatine'],
+  ['creatine', 'Flow Creatine'],
+  ['flow', 'Flow Creatine'],
+  ['whey', 'Whey 360°'],
+  ['wpc', 'Whey 360°'],
+  ['smart meal', 'Smart Meal'],
+  ['meale', 'Smart Meal'],
+  ['meal', 'Smart Meal'],
+  ['shake', 'Proteinowy Shake z Kolagenem'],
+  ['tubka', 'Tubka Mocy'],
+  ['krem orzechowy', 'Krem Orzechowy Proteinowy'],
+  ['ashwagandha', 'Ashwagandha+'],
+  ['hormonal', 'Hormonal Complex'],
+  ['magnez', 'Magnesium Complex'],
+  ['d3k2', 'D3K2 Complex'],
+  ['owsianka', 'Śniadanie Białko+Kolagen'],
+  ['śniadanie', 'Śniadanie Białko+Kolagen'],
+  ['odchudzanie', 'Body Detox Drink'],
+  ['ready to drink', 'Ready to Drink'],
+  ['rtd', 'Ready to Drink'],
+];
+
+// Adset name → product (adset names are more reliable than ad names)
+const ADSET_KEYWORDS: Array<[string, string]> = [
+  ['kreatyna', 'Flow Creatine'],
+  ['whey', 'Whey 360°'],
+  ['meale', 'Smart Meal'],
+  ['shape meal', 'Protein Shape Meal'],
+  ['shape', 'Protein Shape Meal'],
+  ['shake proteinowy', 'Proteinowy Shake z Kolagenem'],
+  ['kolagen', 'Collagen Beauty Drink'],
+  ['matcha', 'Matcha Latte Collagen'],
+  ['detox', 'Body Detox Drink'],
+  ['ogólna linia', 'Katalog ogólny'],
+  ['katalog', 'Katalog ogólny'],
+];
+
+function matchKeywords(text: string, keywords: Array<[string, string]>): string | null {
+  const lower = text.toLowerCase();
+  for (const [keyword, product] of keywords) {
+    if (lower.includes(keyword)) return product;
+  }
+  return null;
+}
+
+export function getProductFromName(adName: string, adsetName?: string): ProductInfo {
+  // Try adset name first (more reliable)
+  if (adsetName) {
+    const adsetMatch = matchKeywords(adsetName, ADSET_KEYWORDS);
+    if (adsetMatch && adsetMatch !== 'Katalog ogólny') {
+      const catalogEntry = Object.values(PRODUCT_CATALOG).find(p => p.name === adsetMatch);
+      if (catalogEntry) return catalogEntry;
+      return { name: adsetMatch, image: '', description: '' };
+    }
+  }
+
+  // Try ad name
+  const nameMatch = matchKeywords(adName, NAME_KEYWORDS);
+  if (nameMatch) {
+    const catalogEntry = Object.values(PRODUCT_CATALOG).find(p => p.name === nameMatch);
+    if (catalogEntry) return catalogEntry;
+    return { name: nameMatch, image: '', description: '' };
+  }
+
+  return { name: 'Inne / Niesklasyfikowane', image: '', description: '' };
+}
+
 function slugToTitle(slug: string): string {
-  return slug
-    .replace(/^supersonic-/, '')
-    .replace(/-/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase());
+  return slug.replace(/^supersonic-/, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 export function getProductInfo(url: string): ProductInfo {
-  if (!url) return { name: 'Katalog ogólny', image: '', description: 'Reklama katalogowa / ogólna' };
+  if (!url) return { name: '', image: '', description: '' }; // empty = needs fallback
 
   try {
     const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
-    const path = parsed.pathname;
-
-    const match = path.match(/\/(?:products|produkt)\/([^/?]+)/);
-    if (!match) return { name: 'Katalog ogólny', image: '', description: 'Reklama katalogowa / ogólna' };
+    const match = parsed.pathname.match(/\/(?:products|produkt)\/([^/?]+)/);
+    if (!match) return { name: '', image: '', description: '' };
 
     const slug = match[1].replace(/\/$/, '');
-    return PRODUCT_CATALOG[slug] ?? {
-      name: slugToTitle(slug),
-      image: '',
-      description: '',
-    };
+    return PRODUCT_CATALOG[slug] ?? { name: slugToTitle(slug), image: '', description: '' };
   } catch {
-    return { name: 'Katalog ogólny', image: '', description: 'Reklama katalogowa / ogólna' };
+    return { name: '', image: '', description: '' };
   }
 }
 
 export function getProductName(url: string): string {
   return getProductInfo(url).name;
-}
-
-export function getProductImage(url: string): string {
-  return getProductInfo(url).image;
 }

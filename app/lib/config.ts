@@ -24,6 +24,7 @@ export interface WeeklyBucket {
   cpm: number;
   ctr: number;
   cpc: number;
+  frequency: number;
   conversions: number;
   revenue: number;
 }
@@ -90,6 +91,8 @@ export interface Creative {
   productImage: string;
   productDescription: string;
   productOverride: string | null;
+  // Ad copy (for Gemini analysis, not displayed)
+  adCopy: string;
   // Traffic light
   trafficLight: TrafficLightStatus;
   trafficLightLabel: string;

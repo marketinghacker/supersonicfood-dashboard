@@ -9,6 +9,7 @@ import VideoPlayer from './VideoPlayer';
 import RetentionCurve from './RetentionCurve';
 import AiAnalysis from './AiAnalysis';
 import ProductChip from './ProductChip';
+import CreativeCharts from './CreativeCharts';
 
 const BORDER_COLORS: Record<string, string> = {
   super: 'border-l-amber-400',
@@ -102,7 +103,7 @@ export default function CreativeCard({ creative, onProductOverride }: CreativeCa
             <span>Konwersje: <b className="text-white font-bold">{creative.conversions}</b></span>
             {creative.engagement.reactions > 0 && <span className="text-gray-200">❤️ {creative.engagement.reactions}</span>}
             {creative.engagement.comments > 0 && <span className="text-gray-200">💬 {creative.engagement.comments}</span>}
-            {creative.engagement.shares > 0 && <span className="text-gray-200">🔗 {creative.engagement.shares}</span>}
+            {creative.engagement.shares > 0 && <span className="text-gray-200">↗️ {creative.engagement.shares}</span>}
           </div>
 
           <div className="flex items-center gap-2">
@@ -178,6 +179,9 @@ export default function CreativeCard({ creative, onProductOverride }: CreativeCa
               {analysis && <AiAnalysis text={analysis} roas={creative.roas} />}
             </div>
           </div>
+
+          {/* Interactive Charts */}
+          <CreativeCharts creative={creative} medianRoas={0} />
 
           {/* Weekly Trend Table */}
           {creative.weeklyBuckets.length > 0 && (
