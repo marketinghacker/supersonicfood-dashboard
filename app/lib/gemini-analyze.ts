@@ -2,7 +2,6 @@ import type { Creative } from './config';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
 const GEMINI_MODEL = 'gemini-3.1-pro-preview';
-const GEMINI_FALLBACK = 'gemini-3-flash-preview';
 const GEMINI_URL_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 function buildDeepContext(c: Creative): string {
@@ -138,12 +137,7 @@ export async function analyzeCreative(creative: Creative): Promise<string> {
   }
   parts.push({ text: prompt });
 
-  // Try 3.1 Pro first, fallback to 3 Flash
-  let result = await callGemini(GEMINI_MODEL, parts);
-  if (!result) {
-    console.error(`Gemini ${GEMINI_MODEL} failed, trying ${GEMINI_FALLBACK}`);
-    result = await callGemini(GEMINI_FALLBACK, [{ text: prompt }]);
-  }
+  const result = await callGemini(GEMINI_MODEL, parts);
 
   return result || 'Błąd analizy — spróbuj ponownie.';
 }
@@ -178,10 +172,7 @@ ${bottom.map(describe).join('\n')}
 Po polsku. Szczegółowo, z danymi. UGC = klient, copy = agencja.`;
 
   const result = await callGemini(GEMINI_MODEL, [{ text: prompt }]);
-  if (result) return result;
-
-  const fallback = await callGemini(GEMINI_FALLBACK, [{ text: prompt }]);
-  return fallback || 'Błąd analizy.';
+  return result || 'Błąd analizy.';
 }
 
 export async function analyzeProduct(creatives: Creative[], productName: string): Promise<string> {
@@ -210,5 +201,5 @@ ${sorted.map(describe).join('\n')}
 Po polsku. Bądź szczegółowy.`;
 
   const result = await callGemini(GEMINI_MODEL, [{ text: prompt }]);
-  return result || await callGemini(GEMINI_FALLBACK, [{ text: prompt }]) || 'Błąd analizy.';
+  return result || 'Błąd analizy.';
 }

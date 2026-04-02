@@ -1,7 +1,7 @@
 import { fetchDashboardData } from '../../lib/meta-api';
 import { analyzeProduct } from '../../lib/gemini-analyze';
 
-export const maxDuration = 60;
+export const maxDuration = 600;
 
 export async function POST(request: Request) {
   try {

@@ -28,11 +28,26 @@ export default function CreativeCard({ creative, onProductOverride }: CreativeCa
   const [expanded, setExpanded] = useState(false);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeProgress, setAnalyzeProgress] = useState(0);
+  const [analyzeEta, setAnalyzeEta] = useState('');
 
   const handleAnalyze = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (analyzing || analysis) return;
     setAnalyzing(true);
+    setAnalyzeProgress(0);
+    setAnalyzeEta('~30-45s');
+
+    // Progress simulation (Gemini 3.1 Pro takes 20-45s)
+    const startTime = Date.now();
+    const progressInterval = setInterval(() => {
+      const elapsed = (Date.now() - startTime) / 1000;
+      const progress = Math.min(95, (elapsed / 40) * 100); // assume ~40s
+      setAnalyzeProgress(progress);
+      const remaining = Math.max(0, Math.round(40 - elapsed));
+      setAnalyzeEta(remaining > 0 ? `~${remaining}s` : 'zaraz...');
+    }, 500);
+
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST',
@@ -40,11 +55,17 @@ export default function CreativeCard({ creative, onProductOverride }: CreativeCa
         body: JSON.stringify({ creative }),
       });
       const data = await res.json();
-      setAnalysis(data.analysis);
-      setExpanded(true);
+      if (data.analysis) {
+        setAnalysis(data.analysis);
+        setExpanded(true);
+      } else {
+        setAnalysis('Błąd analizy AI: ' + (data.error || 'nieznany błąd'));
+      }
     } catch {
-      setAnalysis('Błąd analizy. Spróbuj ponownie.');
+      setAnalysis('Błąd połączenia. Spróbuj ponownie.');
     } finally {
+      clearInterval(progressInterval);
+      setAnalyzeProgress(100);
       setAnalyzing(false);
     }
   };
@@ -123,7 +144,7 @@ export default function CreativeCard({ creative, onProductOverride }: CreativeCa
         <div className="flex flex-col items-end gap-3 flex-shrink-0">
           <SparklineChart buckets={creative.weeklyBuckets} totalRoas={creative.roas} />
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-end gap-2">
             <button
               onClick={handleAnalyze}
               disabled={analyzing || !!analysis}
@@ -131,12 +152,19 @@ export default function CreativeCard({ creative, onProductOverride }: CreativeCa
                 analysis
                   ? 'bg-green-600/20 text-green-300 border border-green-500/40'
                   : analyzing
-                    ? 'bg-purple-600/20 text-purple-300 border border-purple-500/40 animate-pulse'
+                    ? 'bg-purple-600/20 text-purple-300 border border-purple-500/40'
                     : 'bg-purple-600/20 text-purple-300 border border-purple-500/40 hover:bg-purple-600/30'
               }`}
             >
-              {analysis ? '✓ Analiza' : analyzing ? '⏳...' : '🤖 Analizuj'}
+              {analysis ? '✓ Analiza' : analyzing ? `⏳ Gemini 3.1 Pro... ${analyzeEta}` : '🤖 Analizuj (Gemini 3.1 Pro)'}
             </button>
+            {analyzing && (
+              <div className="w-full max-w-[200px]">
+                <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                  <div className="h-full bg-purple-500 rounded-full transition-all duration-500" style={{ width: `${analyzeProgress}%` }} />
+                </div>
+              </div>
+            )}
             <svg className={`w-5 h-5 text-gray-300 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>

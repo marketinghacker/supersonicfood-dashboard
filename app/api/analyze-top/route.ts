@@ -1,7 +1,7 @@
 import { fetchDashboardData } from '../../lib/meta-api';
 import { analyzeTopVsBottom } from '../../lib/gemini-analyze';
 
-export const maxDuration = 30;
+export const maxDuration = 600;
 
 export async function POST() {
   try {

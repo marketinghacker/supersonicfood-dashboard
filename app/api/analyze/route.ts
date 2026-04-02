@@ -1,7 +1,7 @@
 import { analyzeCreative } from '../../lib/gemini-analyze';
 import type { Creative } from '../../lib/config';
 
-export const maxDuration = 30;
+export const maxDuration = 600;
 
 export async function POST(request: Request) {
   try {
