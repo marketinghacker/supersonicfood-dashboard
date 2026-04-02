@@ -5,7 +5,7 @@ export default function LoginPage() {
     <main className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
       <div className="text-center space-y-8">
         <div className="flex flex-col items-center gap-4">
-          <img src="/supersonic-logo.png" alt="SUPERSONIC" className="h-24 w-auto invert" />
+          <img src="/supersonic-logo.png" alt="SUPERSONIC" className="h-12 w-auto invert" />
           <p className="text-base font-semibold text-gray-200">Creative Performance Dashboard</p>
         </div>
 
