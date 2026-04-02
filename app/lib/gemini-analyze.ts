@@ -1,111 +1,139 @@
 import type { Creative } from './config';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
-const GEMINI_MODEL = 'gemini-3-flash-preview';
+const GEMINI_MODEL = 'gemini-2.5-pro-preview-05-06';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-function retentionSummary(c: Creative): string {
-  if (!c.videoRetention || c.videoRetention.plays === 0) return '';
-  const r = c.videoRetention;
-  const p25 = ((r.p25 / r.plays) * 100).toFixed(0);
-  const p50 = ((r.p50 / r.plays) * 100).toFixed(0);
-  const p75 = ((r.p75 / r.plays) * 100).toFixed(0);
-  return `Retencja: ${p25}% @25%, ${p50}% @50%, ${p75}% @75%. Średni czas oglądania: ${r.avgWatchSeconds.toFixed(1)}s.`;
-}
+function buildDeepContext(c: Creative): string {
+  const lines: string[] = [];
+  lines.push(`Kreacja video: "${c.name}"`);
+  lines.push(`Produkt: ${c.product}`);
+  lines.push('');
 
-function engagementSummary(c: Creative): string {
-  const e = c.engagement;
-  const parts: string[] = [];
-  if (e.reactions) parts.push(`${e.reactions} reakcji`);
-  if (e.comments) parts.push(`${e.comments} komentarzy`);
-  if (e.shares) parts.push(`${e.shares} udostępnień`);
-  return parts.length ? `Zaangażowanie: ${parts.join(', ')}.` : '';
-}
+  // Performance metrics
+  lines.push('=== METRYKI PERFORMANCE ===');
+  lines.push(`ROAS: ${c.roas.toFixed(2)}x | Spend: ${c.spend.toFixed(0)} PLN | Revenue: ${c.revenue.toFixed(0)} PLN`);
+  lines.push(`CTR: ${c.ctr.toFixed(2)}% | CPC: ${c.cpc.toFixed(2)} PLN | CPM: ${c.cpm.toFixed(2)} PLN`);
+  lines.push(`Konwersje: ${c.conversions} | Impressions: ${c.impressions.toLocaleString()} | Frequency: ${c.frequency.toFixed(1)}`);
 
-function lifecycleSummary(c: Creative): string {
-  const labels: Record<string, string> = {
-    new: 'Nowa kreacja', ramping: 'W fazie wzrostu', scaling: 'Skaluje się',
-    peak: 'W szczycie', fatiguing: 'Wypala się', burned: 'Wypalona',
-  };
-  return `Status cyklu życia: ${labels[c.lifecycleStage] || c.lifecycleStage}.`;
+  // Link metrics
+  if (c.inlineLinkClicks > 0) {
+    lines.push(`Link clicks: ${c.inlineLinkClicks} | Link CTR: ${c.inlineLinkCtr.toFixed(2)}%`);
+  }
+  if (c.outboundClicks > 0) {
+    lines.push(`Outbound clicks: ${c.outboundClicks} | Outbound CTR: ${c.outboundCtr.toFixed(3)}%`);
+  }
+
+  // Meta rankings
+  if (c.qualityRanking) {
+    lines.push(`Meta rankingi: Quality=${c.qualityRanking}, Engagement=${c.engagementRanking}, Conversion=${c.conversionRanking}`);
+  }
+
+  // CQI
+  lines.push(`\nCreative Quality Index: ${c.cqi.score}/100 (${c.cqi.grade} — ${c.cqi.label})`);
+  lines.push(`  Performance: ${c.cqi.pillars.performance}/100 | Hook: ${c.cqi.pillars.hookStrength}/100 | Story: ${c.cqi.pillars.storytelling}/100 | Engagement: ${c.cqi.pillars.engagement}/100 | Trwałość: ${c.cqi.pillars.durability}/100`);
+
+  // Video retention
+  if (c.videoRetention && c.videoRetention.plays > 0) {
+    const r = c.videoRetention;
+    lines.push('\n=== RETENCJA VIDEO ===');
+    lines.push(`Hook Rate (3s views/impressions): ${(r.hookRate * 100).toFixed(1)}%`);
+    lines.push(`Hold Rate (ThruPlay/3s views): ${(r.holdRate * 100).toFixed(1)}%`);
+    lines.push(`Retencja: ${((r.p25/r.plays)*100).toFixed(0)}% @25% | ${((r.p50/r.plays)*100).toFixed(0)}% @50% | ${((r.p75/r.plays)*100).toFixed(0)}% @75% | ${((r.p95/r.plays)*100).toFixed(0)}% @95%`);
+    lines.push(`ThruPlay: ${r.thruPlays.toLocaleString()} | Avg watch: ${r.avgWatchSeconds.toFixed(1)}s | Cost/ThruPlay: ${r.costPerThruPlay.toFixed(2)} PLN`);
+  }
+
+  // Engagement
+  lines.push('\n=== ZAANGAŻOWANIE ===');
+  lines.push(`Reakcje: ${c.engagement.reactions} | Komentarze: ${c.engagement.comments} | Udostępnienia: ${c.engagement.shares} | Zapisy: ${c.engagement.saves}`);
+  lines.push(`Engagement score: ${c.engagement.engagementScore.toFixed(1)} | Kwadrant: ${c.engagementQuadrant}`);
+
+  // Lifecycle & trend
+  const labels: Record<string, string> = { new: 'Nowa', ramping: 'Rośnie', scaling: 'Skaluje', peak: 'Peak', fatiguing: 'Wypalanie', burned: 'Wypalona' };
+  lines.push(`\n=== CYKL ŻYCIA: ${labels[c.lifecycleStage] || c.lifecycleStage} ===`);
+
+  // Weekly trend
+  const active = c.weeklyBuckets.filter(b => b.spend > 0);
+  if (active.length > 0) {
+    lines.push('Trend tygodniowy (ROAS | Spend | Revenue | Konwersje):');
+    for (const b of active) {
+      const date = new Date(b.dateStart).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' });
+      lines.push(`  ${date}: ROAS ${b.roas.toFixed(1)}x | ${b.spend.toFixed(0)} PLN | ${b.revenue.toFixed(0)} PLN | ${b.conversions} konw.`);
+    }
+  }
+
+  return lines.join('\n');
 }
 
 function buildPrompt(creative: Creative): string {
-  const { roas, ctr, spend, name } = creative;
-  const ret = retentionSummary(creative);
-  const eng = engagementSummary(creative);
-  const lc = lifecycleSummary(creative);
-
-  const context = `Kreacja video: "${name}"
-Produkt: ${creative.product}
-Metryki: ROAS ${roas.toFixed(1)}x, CTR ${ctr.toFixed(2)}%, Spend ${spend.toFixed(0)} PLN, Konwersje: ${creative.conversions}, Revenue: ${creative.revenue.toFixed(0)} PLN
-${ret}
-${eng}
-${lc}`;
+  const context = buildDeepContext(creative);
 
   const videoNote = creative.videoUrl
-    ? 'WAŻNE: Przeanalizuj dokładnie załączony film — opisz co widzisz: hook (pierwsze 3 sekundy), storytelling, produkt, CTA, autentyczność kreatorki/kreatora.'
-    : 'Video niedostępne — analizuj na podstawie nazwy kreacji i metryk.';
+    ? 'WAŻNE: Przeanalizuj dokładnie załączony film — opisz hook (pierwsze 3 sekundy), storytelling, produkt w kadrze, CTA, autentyczność kreatorki/kreatora.'
+    : '';
 
-  if (roas >= 6.0) {
-    return `Jesteś creative strategist pracujący dla agencji reklamowej. Analizujesz TOP kreację UGC video dla SupersonicFood.
-Ta kreacja działa DOSKONALE — NIE sugeruj żadnych zmian.
+  const baseInstructions = `Jesteś senior creative strategist pracujący dla agencji reklamowej Marketing Hackers. Analizujesz kreację UGC video dla SupersonicFood.
 
 ${videoNote}
 
 ${context}
 
-Opisz TYLKO co sprawia że ta kreacja jest tak skuteczna:
-1. Co działa w materiale video? (hook, storytelling, autentyczność, produkt w kadrze)
-2. Które elementy warto REPLIKOWAĆ w nowych kreacjach?
-3. Jak zaangażowanie społeczne wpływa na wyniki?
+INSTRUKCJE ANALIZY:
+Zbierz WSZYSTKIE dane do kupy: metryki performance (ROAS, CTR, CPC), retencję video (hook rate, hold rate), zaangażowanie (reakcje, komentarze, udostępnienia), trendy tygodniowe (czy ROAS rośnie/spada w czasie), CQI (Creative Quality Index) i Meta rankingi.
 
-Po polsku. ZERO krytyki, ZERO sugestii zmian. Bądź konkretny i szczegółowy.`;
+Dopiero PO zebraniu pełnego obrazu daj analizę w punktach:`;
+
+  if (creative.roas >= 6.0) {
+    return `${baseInstructions}
+
+Ta kreacja działa DOSKONALE (ROAS ${creative.roas.toFixed(1)}x) — NIE sugeruj żadnych zmian.
+
+Odpowiedz w bullet pointach:
+• DLACZEGO ta kreacja działa tak dobrze? (na podstawie hook rate, retencji, zaangażowania, trendów)
+• Co w materiale video przyciąga uwagę? (hook, storytelling, autentyczność)
+• Jak trendy tygodniowe potwierdzają stabilność wyników?
+• Które elementy warto REPLIKOWAĆ w nowych kreacjach?
+• Jak zaangażowanie społeczne (komentarze, udostępnienia) wspiera performance?
+
+Po polsku. ZERO krytyki. Bądź szczegółowy i oparty na danych.`;
   }
 
-  if (roas >= 4.0) {
-    return `Jesteś creative strategist pracujący dla agencji reklamowej. Analizujesz kreację UGC video dla SupersonicFood.
+  if (creative.roas >= 4.0) {
+    return `${baseInstructions}
 
-${videoNote}
+Kreacja ma średnie wyniki (ROAS ${creative.roas.toFixed(1)}x).
 
-${context}
+Odpowiedz w bullet pointach:
+• Co DZIAŁA w tej kreacji? (na podstawie danych retencji, hook rate, zaangażowania)
+• Co jest SŁABE? (gdzie dane pokazują problemy — np. słaby hook, duży drop w retencji, niski CTR)
+• Jak trendy tygodniowe wyglądają — stabilne, rosnące czy spadające?
+• Konkretne SUGESTIE KREATYWNE co zmienić (hook, storytelling, CTA)
+• Co mówi stosunek engagement vs ROAS? (wysoki engagement ale niski ROAS = problem z konwersją)
 
-1. Co działa w materiale video? (hook, storytelling, produkt)
-2. Co można KREATYWNIE poprawić aby podnieść wyniki?
-3. Jak retencja i zaangażowanie wpływają na performance?
-
-Po polsku. Skup się na kreatywnych (nie mediowych) sugestiach. Bądź konkretny i szczegółowy.`;
+Po polsku. Skup się na kreatywnych sugestiach opartych na danych.`;
   }
 
-  return `Jesteś creative strategist pracujący dla agencji reklamowej. Analizujesz słabo działającą kreację UGC video dla SupersonicFood.
+  return `${baseInstructions}
 
-${videoNote}
+Kreacja działa SŁABO (ROAS ${creative.roas.toFixed(1)}x).
 
-${context}
+Odpowiedz w bullet pointach:
+• Co NIE DZIAŁA? (na podstawie danych — słaby hook rate, niska retencja, brak zaangażowania?)
+• Gdzie w video tracisz widzów? (analiza retencji po kwartylach)
+• Dlaczego trend tygodniowy pokazuje spadek/stagnację?
+• Konkretne SUGESTIE co zmienić w kolejnym nagraniu (hook, format, tempo, CTA, produkt w kadrze)
+• Czy ta kreacja powinna być wyłączona? (na podstawie trendu i lifecycle stage)
 
-1. Co NIE działa? (hook, przekaz, retencja, spójność z produktem)
-2. Jakie elementy kreatywne osłabiają wynik?
-3. Konkretne sugestie KREATYWNE co zmienić w kolejnych nagraniach.
-
-Po polsku. Konkretne, actionable sugestie kreatywne. Bądź szczegółowy.`;
+Po polsku. Konkretne, actionable sugestie kreatywne oparte na danych.`;
 }
 
 export async function analyzeCreative(creative: Creative): Promise<string> {
   const prompt = buildPrompt(creative);
 
-  // Build parts — text + video if available
   const parts: Array<{ text: string } | { fileData: { mimeType: string; fileUri: string } }> = [];
-
-  // If video URL is available, include it for Gemini to analyze
-  if (creative.videoUrl) {
-    parts.push({
-      fileData: {
-        mimeType: 'video/mp4',
-        fileUri: creative.videoUrl,
-      },
-    });
+  if (creative.videoUrl && creative.videoUrl.startsWith('http')) {
+    parts.push({ fileData: { mimeType: 'video/mp4', fileUri: creative.videoUrl } });
   }
-
   parts.push({ text: prompt });
 
   const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
@@ -119,10 +147,9 @@ export async function analyzeCreative(creative: Creative): Promise<string> {
 
   if (!res.ok) {
     const err = await res.text();
-    // If video analysis fails, retry without video
     if (creative.videoUrl) {
       console.error('Gemini video analysis failed, retrying text-only:', err);
-      const textOnlyRes = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+      const textRes = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -130,8 +157,8 @@ export async function analyzeCreative(creative: Creative): Promise<string> {
           generationConfig: { temperature: 0.7 },
         }),
       });
-      if (textOnlyRes.ok) {
-        const json = await textOnlyRes.json();
+      if (textRes.ok) {
+        const json = await textRes.json();
         return json.candidates?.[0]?.content?.parts?.[0]?.text || 'Brak analizy';
       }
     }
@@ -142,37 +169,30 @@ export async function analyzeCreative(creative: Creative): Promise<string> {
   return json.candidates?.[0]?.content?.parts?.[0]?.text || 'Brak analizy';
 }
 
-export async function analyzeTopVsBottom(
-  topCreatives: Creative[],
-  bottomCreatives: Creative[]
-): Promise<string> {
+export async function analyzeTopVsBottom(top: Creative[], bottom: Creative[]): Promise<string> {
   const describe = (c: Creative) => {
-    const ret = c.videoRetention && c.videoRetention.plays > 0
-      ? `, retencja 50%: ${((c.videoRetention.p50 / c.videoRetention.plays) * 100).toFixed(0)}%`
-      : '';
+    const hook = c.videoRetention ? `hook ${(c.videoRetention.hookRate * 100).toFixed(0)}%` : '';
+    const hold = c.videoRetention ? `hold ${(c.videoRetention.holdRate * 100).toFixed(0)}%` : '';
     const eng = c.engagement.reactions + c.engagement.comments + c.engagement.shares;
-    return `- "${c.name}" (ROAS ${c.roas.toFixed(1)}x, Spend ${c.spend.toFixed(0)} PLN, CTR ${c.ctr.toFixed(2)}%${ret}, zaangażowanie: ${eng})`;
+    return `- "${c.name}" (ROAS ${c.roas.toFixed(1)}x, CQI ${c.cqi.score}/100, Spend ${c.spend.toFixed(0)} PLN, ${hook}, ${hold}, engagement: ${eng})`;
   };
 
-  const topDesc = topCreatives.map(describe).join('\n');
-  const bottomDesc = bottomCreatives.map(describe).join('\n');
+  const prompt = `Jesteś senior creative strategist. Analizujesz portfolio kreacji video SupersonicFood.
 
-  const prompt = `Jesteś creative strategist analizujący portfolio kreacji reklamowych video SupersonicFood.
+TOP KREACJE:
+${top.map(describe).join('\n')}
 
-TOP KREACJE (najlepsze wyniki):
-${topDesc}
+SŁABE KREACJE:
+${bottom.map(describe).join('\n')}
 
-SŁABE KREACJE (najgorsze wyniki):
-${bottomDesc}
+Odpowiedz w bullet pointach:
+• Jakie WZORCE łączą najlepsze kreacje? (hook, retencja, format, storytelling)
+• Jakie BŁĘDY powtarzają się w słabych? (na podstawie hook rate, hold rate, engagement)
+• Jak CQI (Creative Quality Index) koreluje z ROAS — czy wyłapuje dobre kreacje?
+• Jakie zaangażowanie (komentarze, udostępnienia) mają TOP vs BOTTOM?
+• Konkretne REKOMENDACJE na nowe UGC video i copy
 
-Porównaj i odpowiedz szczegółowo:
-1. Jakie WZORCE KREATYWNE łączą najlepsze kreacje? (hook, format, storytelling, retencja)
-2. Jakie BŁĘDY KREATYWNE powtarzają się w słabych kreacjach?
-3. Jak zaangażowanie (reakcje, komentarze, udostępnienia) koreluje z performance?
-4. Jakie REKOMENDACJE KREATYWNE dla nowych materiałów UGC video?
-
-Po polsku. Skup się TYLKO na wnioskach kreatywnych (nie mediowych).
-Pamiętaj: UGC video dostarcza klient, copy/argumenty przygotowuje agencja. Bądź szczegółowy.`;
+Po polsku. Pamiętaj: UGC video = klient, copy = agencja. Bądź szczegółowy.`;
 
   const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
     method: 'POST',
@@ -183,11 +203,7 @@ Pamiętaj: UGC video dostarcza klient, copy/argumenty przygotowuje agencja. Bąd
     }),
   });
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gemini API error ${res.status}: ${err}`);
-  }
-
+  if (!res.ok) throw new Error(`Gemini API error ${res.status}`);
   const json = await res.json();
   return json.candidates?.[0]?.content?.parts?.[0]?.text || 'Brak analizy';
 }

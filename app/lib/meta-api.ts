@@ -1,6 +1,7 @@
 import { META_BASE_URL } from './config';
 import { getTrafficLight } from './traffic-light';
 import { getProductName } from './product-mapper';
+import { computeBenchmarks, calculateCQI } from './cqi';
 import type {
   Creative, WeeklyBucket, VideoRetention, SocialEngagement,
   CreativeType, LifecycleStage, EngagementQuadrant,
@@ -37,16 +38,29 @@ interface RawInsight {
   impressions: string;
   clicks: string;
   ctr: string;
+  cpc?: string;
   cpm: string;
   frequency?: string;
   actions?: Array<{ action_type: string; value: string }>;
   action_values?: Array<{ action_type: string; value: string }>;
+  cost_per_action_type?: Array<{ action_type: string; value: string }>;
   video_play_actions?: Array<{ action_type: string; value: string }>;
   video_p25_watched_actions?: Array<{ action_type: string; value: string }>;
   video_p50_watched_actions?: Array<{ action_type: string; value: string }>;
   video_p75_watched_actions?: Array<{ action_type: string; value: string }>;
   video_p95_watched_actions?: Array<{ action_type: string; value: string }>;
+  video_p100_watched_actions?: Array<{ action_type: string; value: string }>;
   video_avg_time_watched_actions?: Array<{ action_type: string; value: string }>;
+  video_3_sec_watched_actions?: Array<{ action_type: string; value: string }>;
+  video_thruplay_watched_actions?: Array<{ action_type: string; value: string }>;
+  cost_per_thruplay?: Array<{ action_type: string; value: string }>;
+  outbound_clicks?: Array<{ action_type: string; value: string }>;
+  outbound_clicks_ctr?: Array<{ action_type: string; value: string }>;
+  inline_link_clicks?: string;
+  inline_link_click_ctr?: string;
+  quality_ranking?: string;
+  engagement_rate_ranking?: string;
+  conversion_rate_ranking?: string;
   date_start: string;
   date_stop: string;
 }
@@ -65,14 +79,19 @@ async function fetchWeeklyInsights(): Promise<RawInsight[]> {
     level: 'ad',
     filtering: JSON.stringify([{ field: 'ad.effective_status', operator: 'IN', value: ['ACTIVE'] }]),
     fields: [
-      'ad_id', 'ad_name', 'spend', 'impressions', 'clicks', 'ctr', 'cpm',
-      'actions', 'action_values',
+      'ad_id', 'ad_name', 'spend', 'impressions', 'clicks', 'ctr', 'cpc', 'cpm', 'frequency',
+      'actions', 'action_values', 'cost_per_action_type',
       'video_play_actions', 'video_p25_watched_actions', 'video_p50_watched_actions',
-      'video_p75_watched_actions', 'video_p95_watched_actions', 'video_avg_time_watched_actions',
+      'video_p75_watched_actions', 'video_p95_watched_actions', 'video_p100_watched_actions',
+      'video_avg_time_watched_actions', 'video_3_sec_watched_actions',
+      'video_thruplay_watched_actions', 'cost_per_thruplay',
+      'outbound_clicks', 'outbound_clicks_ctr',
+      'inline_link_clicks', 'inline_link_click_ctr',
+      'quality_ranking', 'engagement_rate_ranking', 'conversion_rate_ranking',
     ].join(','),
     time_range: JSON.stringify({ since: formatDate(since), until: formatDate(until) }),
     time_increment: '7',
-    limit: '500',
+    limit: '1000',
   });
 
   let isFirstRequest = true;
@@ -296,6 +315,7 @@ export async function fetchDashboardData(): Promise<Creative[]> {
         impressions: parseInt(r.impressions) || 0,
         cpm: parseFloat(r.cpm) || 0,
         ctr: parseFloat(r.ctr) || 0,
+        cpc: parseFloat(r.cpc || '0') || 0,
         conversions: parseActionValueMulti(r.actions, ['purchase', 'omni_purchase']),
         revenue,
       };
@@ -310,17 +330,40 @@ export async function fetchDashboardData(): Promise<Creative[]> {
     const totalCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
     const totalRoas = totalSpend > 0 ? totalRevenue / totalSpend : 0;
 
+    // Extended metrics
+    const totalCpc = rows.reduce((s, r) => s + (parseFloat(r.cpc || '0') || 0), 0) / rows.length;
+    const totalCpm = totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0;
+    const totalFrequency = rows.reduce((s, r) => s + (parseFloat(r.frequency || '0') || 0), 0) / rows.length;
+    const inlineLinkClicks = rows.reduce((s, r) => s + (parseFloat(r.inline_link_clicks || '0') || 0), 0);
+    const inlineLinkCtr = rows.reduce((s, r) => s + (parseFloat(r.inline_link_click_ctr || '0') || 0), 0) / rows.length;
+    const outboundClicks = rows.reduce((s, r) => s + parseActionValue(r.outbound_clicks, 'outbound_click'), 0);
+    const outboundCtr = rows.reduce((s, r) => s + parseActionValue(r.outbound_clicks_ctr, 'outbound_click'), 0) / rows.length;
+    const qualityRanking = rows[rows.length - 1]?.quality_ranking || '';
+    const engagementRanking = rows[rows.length - 1]?.engagement_rate_ranking || '';
+    const conversionRanking = rows[rows.length - 1]?.conversion_rate_ranking || '';
+
     // Video retention (aggregate across all weeks)
     const totalPlays = rows.reduce((s, r) => s + parseActionValue(r.video_play_actions, 'video_view'), 0);
     let videoRetention: VideoRetention | null = null;
     if (totalPlays > 0) {
+      const thruPlays = rows.reduce((s, r) => s + parseActionValue(r.video_thruplay_watched_actions, 'video_view'), 0);
+      const threeSecViews = rows.reduce((s, r) => s + parseActionValue(r.video_3_sec_watched_actions, 'video_view'), 0);
+      const p100 = rows.reduce((s, r) => s + parseActionValue(r.video_p100_watched_actions, 'video_view'), 0);
+      const costPerThruPlay = rows.reduce((s, r) => s + parseActionValue(r.cost_per_thruplay, 'video_view'), 0) / rows.length;
+
       videoRetention = {
         plays: totalPlays,
         p25: rows.reduce((s, r) => s + parseActionValue(r.video_p25_watched_actions, 'video_view'), 0),
         p50: rows.reduce((s, r) => s + parseActionValue(r.video_p50_watched_actions, 'video_view'), 0),
         p75: rows.reduce((s, r) => s + parseActionValue(r.video_p75_watched_actions, 'video_view'), 0),
         p95: rows.reduce((s, r) => s + parseActionValue(r.video_p95_watched_actions, 'video_view'), 0),
+        p100,
         avgWatchSeconds: rows.reduce((s, r) => s + parseActionValue(r.video_avg_time_watched_actions, 'video_view'), 0) / rows.length,
+        thruPlays,
+        threeSecViews,
+        hookRate: totalImpressions > 0 ? threeSecViews / totalImpressions : 0,
+        holdRate: threeSecViews > 0 ? thruPlays / threeSecViews : 0,
+        costPerThruPlay,
       };
     }
 
@@ -354,9 +397,12 @@ export async function fetchDashboardData(): Promise<Creative[]> {
       impressions: totalImpressions,
       clicks: totalClicks,
       ctr: totalCtr,
+      cpc: totalCpc,
+      cpm: totalCpm,
       roas: totalRoas,
       conversions: totalConversions,
       revenue: totalRevenue,
+      frequency: totalFrequency,
       thumbnailUrl: details?.thumbnailUrl || '',
       videoUrl: details?.videoUrl || null,
       imageUrl: details?.imageUrl || null,
@@ -368,7 +414,15 @@ export async function fetchDashboardData(): Promise<Creative[]> {
       weeklyBuckets,
       videoRetention,
       engagement,
-      engagementQuadrant: 'no_data', // will be computed after median calc
+      engagementQuadrant: 'no_data',
+      cqi: { score: 0, grade: '-', label: 'Brak danych', confidence: 'low', pillars: { performance: 0, hookStrength: 0, storytelling: 0, engagement: 0, durability: 0 } },
+      qualityRanking,
+      engagementRanking,
+      conversionRanking,
+      inlineLinkClicks: inlineLinkClicks,
+      inlineLinkCtr: inlineLinkCtr,
+      outboundClicks: outboundClicks,
+      outboundCtr: outboundCtr,
     });
   }
 
@@ -385,6 +439,12 @@ export async function fetchDashboardData(): Promise<Creative[]> {
         c.engagement.engagementScore, c.roas, medianEng, medianRoas, c.spend
       );
     }
+  }
+
+  // Compute CQI
+  const benchmarks = computeBenchmarks(creatives);
+  for (const c of creatives) {
+    c.cqi = calculateCQI(c, benchmarks);
   }
 
   return creatives;

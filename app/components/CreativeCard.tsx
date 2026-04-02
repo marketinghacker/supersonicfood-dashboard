@@ -77,6 +77,16 @@ export default function CreativeCard({ creative, onProductOverride }: CreativeCa
           <h3 className="text-base font-bold text-white truncate">{creative.name}</h3>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {/* CQI Badge */}
+            {creative.cqi.score > 0 && (
+              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm font-black border ${
+                creative.cqi.score >= 70 ? 'bg-green-500/15 border-green-500/30 text-green-300' :
+                creative.cqi.score >= 50 ? 'bg-yellow-500/15 border-yellow-500/30 text-yellow-300' :
+                'bg-red-500/15 border-red-500/30 text-red-300'
+              }`} title={`CQI: ${creative.cqi.label} (${creative.cqi.confidence})`}>
+                {creative.cqi.score} {creative.cqi.grade}
+              </span>
+            )}
             <LifecycleDetail
               stage={creative.lifecycleStage}
               trafficLight={creative.trafficLight}

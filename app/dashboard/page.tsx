@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Creative, TrafficLightStatus } from '../lib/config';
 import FilterBar from '../components/FilterBar';
+import type { SortBy, AdvancedFilter } from '../components/FilterBar';
 import DashboardLegend from '../components/DashboardLegend';
 import SummaryBar from '../components/SummaryBar';
 import ProductGroup from '../components/ProductGroup';
@@ -17,7 +18,8 @@ export default function DashboardPage() {
 
   const [selectedProduct, setSelectedProduct] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState<TrafficLightStatus | 'all'>('all');
-  const [sortBy, setSortBy] = useState<'roas' | 'spend' | 'ctr'>('roas');
+  const [sortBy, setSortBy] = useState<SortBy>('cqi');
+  const [advancedFilter, setAdvancedFilter] = useState<AdvancedFilter>('all');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -40,8 +42,7 @@ export default function DashboardPage() {
   const handleProductOverride = useCallback((adId: string, product: string) => {
     setProductOverrides(prev => ({ ...prev, [adId]: product }));
     fetch('/api/products/override', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ adId, product }),
     }).catch(() => {});
   }, []);
@@ -53,12 +54,29 @@ export default function DashboardPage() {
 
   const videosOnly = creativesWithOverrides.filter(c => c.creativeType === 'video');
 
-  const filtered = videosOnly
+  // Apply filters
+  let filtered = videosOnly
     .filter(c => selectedProduct === 'all' || c.product === selectedProduct)
     .filter(c => selectedStatus === 'all' || c.trafficLight === selectedStatus);
 
+  // Advanced filter
+  if (advancedFilter !== 'all') {
+    filtered = filtered.filter(c => {
+      switch (advancedFilter) {
+        case 'viral_winner': return c.engagementQuadrant === 'viral_winner';
+        case 'ramping': return c.lifecycleStage === 'ramping' || c.lifecycleStage === 'scaling';
+        case 'fatiguing': return c.lifecycleStage === 'fatiguing' || c.lifecycleStage === 'burned';
+        case 'good_hook': return c.videoRetention && c.videoRetention.hookRate > 0.30;
+        case 'bad_hook': return c.videoRetention && c.videoRetention.hookRate > 0 && c.videoRetention.hookRate < 0.20;
+        default: return true;
+      }
+    });
+  }
+
+  // Sort
   const sorted = [...filtered].sort((a, b) => {
     switch (sortBy) {
+      case 'cqi': return b.cqi.score - a.cqi.score;
       case 'roas': return b.roas - a.roas;
       case 'spend': return b.spend - a.spend;
       case 'ctr': return b.ctr - a.ctr;
@@ -84,7 +102,6 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-gray-950">
-      {/* Header */}
       <header className="sticky top-0 z-40 bg-gray-950/95 backdrop-blur border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
@@ -93,18 +110,11 @@ export default function DashboardPage() {
               <span className="text-gray-200 text-base font-semibold">Creative Dashboard</span>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm font-semibold text-gray-200">
-                {videoCount} video{otherCount > 0 ? ` / ${otherCount} inne` : ''}
-              </span>
+              <span className="text-sm font-semibold text-gray-200">{videoCount} video{otherCount > 0 ? ` / ${otherCount} inne` : ''}</span>
               {lastUpdated && (
-                <span className="text-sm text-gray-300 font-medium">
-                  🔄 {new Date(lastUpdated).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
-                </span>
+                <span className="text-sm text-gray-300 font-medium">🔄 {new Date(lastUpdated).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}</span>
               )}
-              <button onClick={fetchData} disabled={loading}
-                className="text-sm font-bold text-blue-300 hover:text-blue-200 disabled:opacity-50">
-                Odśwież
-              </button>
+              <button onClick={fetchData} disabled={loading} className="text-sm font-bold text-blue-300 hover:text-blue-200 disabled:opacity-50">Odśwież</button>
             </div>
           </div>
         </div>
@@ -112,7 +122,9 @@ export default function DashboardPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         <FilterBar products={products} selectedProduct={selectedProduct} onProductChange={setSelectedProduct}
-          selectedStatus={selectedStatus} onStatusChange={setSelectedStatus} sortBy={sortBy} onSortChange={setSortBy} />
+          selectedStatus={selectedStatus} onStatusChange={setSelectedStatus}
+          sortBy={sortBy} onSortChange={setSortBy}
+          advancedFilter={advancedFilter} onAdvancedFilterChange={setAdvancedFilter} />
 
         <DashboardLegend />
 
@@ -123,7 +135,7 @@ export default function DashboardPage() {
             <div className="text-center space-y-4">
               <div className="w-12 h-12 border-3 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto" />
               <p className="text-white text-lg font-bold">Ładowanie kreacji video z Meta Ads...</p>
-              <p className="text-gray-300 text-base">Pobieranie danych z ostatnich 60 dni + trendy tygodniowe</p>
+              <p className="text-gray-300 text-base">Pobieranie danych z ostatnich 60 dni + trendy + CQI</p>
             </div>
           </div>
         )}
@@ -131,9 +143,7 @@ export default function DashboardPage() {
         {error && (
           <div className="bg-red-500/15 border-2 border-red-500/40 rounded-xl p-6 text-center">
             <p className="text-red-300 text-lg font-bold">{error}</p>
-            <button onClick={fetchData} className="mt-3 text-base font-bold text-red-200 hover:text-red-100 underline">
-              Spróbuj ponownie
-            </button>
+            <button onClick={fetchData} className="mt-3 text-base font-bold text-red-200 hover:text-red-100 underline">Spróbuj ponownie</button>
           </div>
         )}
 
@@ -142,10 +152,8 @@ export default function DashboardPage() {
             {sortedGroups.map(([product, productCreatives]) => (
               <ProductGroup key={product} product={product} creatives={productCreatives} onProductOverride={handleProductOverride} />
             ))}
-            {sorted.length === 0 && !loading && (
-              <div className="text-center py-12">
-                <p className="text-xl font-bold text-gray-200">Brak kreacji video spełniających kryteria</p>
-              </div>
+            {sorted.length === 0 && (
+              <div className="text-center py-12"><p className="text-xl font-bold text-gray-200">Brak kreacji video spełniających kryteria</p></div>
             )}
           </div>
         )}
@@ -153,7 +161,6 @@ export default function DashboardPage() {
         {!loading && videosOnly.length > 5 && <TraitsReport />}
       </div>
 
-      {/* Footer */}
       <footer className="border-t border-gray-700 mt-12 py-6">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-center gap-3">
           <span className="text-sm text-gray-400 font-medium">Powered by</span>

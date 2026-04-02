@@ -11,11 +11,8 @@ export const MIN_SPEND = 200; // PLN
 export const MIN_IMPRESSIONS = 1000;
 
 export type TrafficLightStatus = 'super' | 'good' | 'watch' | 'bad' | 'no_data';
-
 export type LifecycleStage = 'ramping' | 'scaling' | 'peak' | 'fatiguing' | 'burned' | 'new';
-
 export type CreativeType = 'video' | 'image' | 'carousel' | 'unknown';
-
 export type EngagementQuadrant = 'viral_winner' | 'engagement_trap' | 'silent_converter' | 'needs_work' | 'no_data';
 
 export interface WeeklyBucket {
@@ -26,6 +23,7 @@ export interface WeeklyBucket {
   impressions: number;
   cpm: number;
   ctr: number;
+  cpc: number;
   conversions: number;
   revenue: number;
 }
@@ -36,7 +34,13 @@ export interface VideoRetention {
   p50: number;
   p75: number;
   p95: number;
+  p100: number;
   avgWatchSeconds: number;
+  thruPlays: number;
+  threeSecViews: number;
+  hookRate: number;       // 3s views / impressions
+  holdRate: number;       // thruplay / 3s views
+  costPerThruPlay: number;
 }
 
 export interface SocialEngagement {
@@ -44,7 +48,21 @@ export interface SocialEngagement {
   comments: number;
   shares: number;
   saves: number;
-  engagementScore: number; // (reactions + comments*3 + shares*5) / impressions * 1000
+  engagementScore: number;
+}
+
+export interface CQI {
+  score: number;          // 0-100
+  grade: string;          // A+, A, B+, etc.
+  label: string;          // Wyjątkowa, Mocna, etc.
+  confidence: 'low' | 'medium' | 'high';
+  pillars: {
+    performance: number;
+    hookStrength: number;
+    storytelling: number;
+    engagement: number;
+    durability: number;
+  };
 }
 
 export interface Creative {
@@ -57,9 +75,12 @@ export interface Creative {
   impressions: number;
   clicks: number;
   ctr: number;
+  cpc: number;
+  cpm: number;
   roas: number;
   conversions: number;
   revenue: number;
+  frequency: number;
   // Media
   thumbnailUrl: string;
   videoUrl: string | null;
@@ -67,10 +88,10 @@ export interface Creative {
   // Product
   product: string;
   productOverride: string | null;
-  // Traffic light (based on total ROAS)
+  // Traffic light
   trafficLight: TrafficLightStatus;
   trafficLightLabel: string;
-  // Lifecycle (based on trend)
+  // Lifecycle
   lifecycleStage: LifecycleStage;
   // Trend data
   weeklyBuckets: WeeklyBucket[];
@@ -79,4 +100,15 @@ export interface Creative {
   // Social engagement
   engagement: SocialEngagement;
   engagementQuadrant: EngagementQuadrant;
+  // Creative Quality Index
+  cqi: CQI;
+  // Meta rankings
+  qualityRanking: string;
+  engagementRanking: string;
+  conversionRanking: string;
+  // Link metrics
+  inlineLinkClicks: number;
+  inlineLinkCtr: number;
+  outboundClicks: number;
+  outboundCtr: number;
 }
