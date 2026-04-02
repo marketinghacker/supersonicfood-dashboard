@@ -161,6 +161,10 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
           if (afs.videos?.length > 0) {
             creativeType = 'video';
             if (afs.videos[0].thumbnail_url) thumbnailUrl = afs.videos[0].thumbnail_url;
+            // Capture video_id from asset_feed_spec if not already set
+            if (!videoUrl && afs.videos[0].video_id) {
+              videoUrl = afs.videos[0].video_id;
+            }
           } else if (afs.images?.length > 1) {
             creativeType = 'carousel';
           }
@@ -188,6 +192,7 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
     const videoMap = new Map<string, string>();
     const videoIdArr = Array.from(videoIds);
 
+    // Try batch first
     for (let i = 0; i < videoIdArr.length; i += 50) {
       const batch = videoIdArr.slice(i, i + 50);
       const batchRequests = batch.map(vid => ({
@@ -205,17 +210,34 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
           }),
         });
 
-        if (!batchRes.ok) continue;
-        const batchJson: Array<{ code: number; body: string }> = await batchRes.json();
-
-        for (let j = 0; j < batchJson.length; j++) {
-          if (batchJson[j].code === 200) {
-            const body = JSON.parse(batchJson[j].body);
-            if (body.source) videoMap.set(batch[j], body.source);
+        if (batchRes.ok) {
+          const batchJson: Array<{ code: number; body: string }> = await batchRes.json();
+          for (let j = 0; j < batchJson.length; j++) {
+            if (batchJson[j].code === 200) {
+              const body = JSON.parse(batchJson[j].body);
+              if (body.source) videoMap.set(batch[j], body.source);
+            }
           }
         }
+      } catch (err) {
+        console.error('Batch video resolve error:', err);
+      }
+    }
+
+    // Fallback: individual requests for videos that batch didn't resolve
+    for (const vid of videoIdArr) {
+      if (videoMap.has(vid)) continue;
+      try {
+        const res = await fetch(
+          `${META_BASE_URL}/${vid}?fields=source&access_token=${TOKEN}`,
+          { next: { revalidate: 0 } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.source) videoMap.set(vid, data.source);
+        }
       } catch {
-        // Continue
+        // Individual request failed too
       }
     }
 
@@ -223,7 +245,7 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
       if (data.videoUrl && videoMap.has(data.videoUrl)) {
         data.videoUrl = videoMap.get(data.videoUrl)!;
       } else if (data.videoUrl && !data.videoUrl.startsWith('http')) {
-        data.videoUrl = null;
+        data.videoUrl = null; // Truly unavailable
       }
     }
   }

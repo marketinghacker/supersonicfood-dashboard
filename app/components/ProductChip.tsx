@@ -20,21 +20,23 @@ export default function ProductChip({ adId, product, isOverride, onOverride }: P
 
   if (editing) {
     return (
-      <select autoFocus
-        className="text-sm font-semibold bg-gray-700 border-2 border-blue-400 rounded-lg px-3 py-1.5 text-white focus:outline-none"
-        value={product}
-        onChange={e => { onOverride(adId, e.target.value); setEditing(false); }}
-        onBlur={() => setEditing(false)}>
-        {KNOWN_PRODUCTS.map(p => <option key={p} value={p}>{p}</option>)}
-      </select>
+      <div onClick={e => e.stopPropagation()}>
+        <select autoFocus
+          className="text-sm font-semibold bg-gray-700 border-2 border-blue-400 rounded-lg px-3 py-1.5 text-white focus:outline-none"
+          value={product}
+          onChange={e => { onOverride(adId, e.target.value); setEditing(false); }}
+          onBlur={() => setEditing(false)}>
+          {KNOWN_PRODUCTS.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+      </div>
     );
   }
 
   return (
     <button onClick={e => { e.stopPropagation(); setEditing(true); }}
-      className="inline-flex items-center gap-1 text-sm font-semibold text-gray-200 hover:text-white transition-colors group"
+      className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-200 hover:text-white transition-colors group"
       title="Kliknij aby zmienić produkt">
-      <span>{isOverride ? '✏️' : '🔗'}</span>
+      <span>{isOverride ? '✏️' : '📂'}</span>
       <span className="group-hover:underline">{product}</span>
     </button>
   );

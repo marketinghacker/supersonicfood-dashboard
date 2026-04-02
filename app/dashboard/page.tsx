@@ -88,7 +88,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <img src="/supersonic-logo.png" alt="SUPERSONIC" className="h-7 w-auto invert" />
+              <img src="/supersonic-logo.png" alt="SUPERSONIC" className="h-10 w-auto invert" />
               <span className="text-gray-200 text-base font-semibold">Creative Dashboard</span>
             </div>
             <div className="flex items-center gap-4">
@@ -154,7 +154,7 @@ export default function DashboardPage() {
       <footer className="border-t border-gray-700 mt-12 py-6">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-center gap-3">
           <span className="text-sm text-gray-400 font-medium">Powered by</span>
-          <img src="/mh-logo.png" alt="Marketing Hackers" className="h-12 w-auto" />
+          <img src="/mh-logo.png" alt="Marketing Hackers" className="h-8 w-auto" />
         </div>
       </footer>
     </main>
