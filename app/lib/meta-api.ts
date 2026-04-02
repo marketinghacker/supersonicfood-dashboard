@@ -197,9 +197,11 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
   if (videoIds.size > 0) {
     // Use advideos endpoint (has source access, unlike direct /{video_id})
     const videoMap = new Map<string, string>();
-    let advUrl: string | null = `${META_BASE_URL}/${ACCOUNT_ID}/advideos?fields=id,source&limit=100&access_token=${TOKEN}`;
+    let advUrl: string | null = `${META_BASE_URL}/${ACCOUNT_ID}/advideos?fields=id,source&limit=200&access_token=${TOKEN}`;
+    let pages = 0;
 
-    while (advUrl) {
+    while (advUrl && pages < 3) {
+      pages++;
       try {
         const res: Response = await fetch(advUrl, { next: { revalidate: 0 } });
         if (!res.ok) break;
@@ -209,7 +211,6 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
             videoMap.set(v.id, v.source);
           }
         }
-        // Stop if we've found all needed videos
         if (videoMap.size >= videoIds.size) break;
         advUrl = json.paging?.next || null;
       } catch {
