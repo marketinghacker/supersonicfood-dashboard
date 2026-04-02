@@ -51,7 +51,7 @@ interface RawInsight {
   video_p95_watched_actions?: Array<{ action_type: string; value: string }>;
   video_p100_watched_actions?: Array<{ action_type: string; value: string }>;
   video_avg_time_watched_actions?: Array<{ action_type: string; value: string }>;
-  video_3_sec_watched_actions?: Array<{ action_type: string; value: string }>;
+  // video_3_sec_watched_actions removed (not available in v21)
   video_thruplay_watched_actions?: Array<{ action_type: string; value: string }>;
   cost_per_thruplay?: Array<{ action_type: string; value: string }>;
   outbound_clicks?: Array<{ action_type: string; value: string }>;
@@ -83,7 +83,7 @@ async function fetchWeeklyInsights(): Promise<RawInsight[]> {
       'actions', 'action_values', 'cost_per_action_type',
       'video_play_actions', 'video_p25_watched_actions', 'video_p50_watched_actions',
       'video_p75_watched_actions', 'video_p95_watched_actions', 'video_p100_watched_actions',
-      'video_avg_time_watched_actions', 'video_3_sec_watched_actions',
+      'video_avg_time_watched_actions',
       'video_thruplay_watched_actions', 'cost_per_thruplay',
       'outbound_clicks', 'outbound_clicks_ctr',
       'inline_link_clicks', 'inline_link_click_ctr',
@@ -347,23 +347,21 @@ export async function fetchDashboardData(): Promise<Creative[]> {
     let videoRetention: VideoRetention | null = null;
     if (totalPlays > 0) {
       const thruPlays = rows.reduce((s, r) => s + parseActionValue(r.video_thruplay_watched_actions, 'video_view'), 0);
-      const threeSecViews = rows.reduce((s, r) => s + parseActionValue(r.video_3_sec_watched_actions, 'video_view'), 0);
+      const p25 = rows.reduce((s, r) => s + parseActionValue(r.video_p25_watched_actions, 'video_view'), 0);
+      const p50 = rows.reduce((s, r) => s + parseActionValue(r.video_p50_watched_actions, 'video_view'), 0);
+      const p75 = rows.reduce((s, r) => s + parseActionValue(r.video_p75_watched_actions, 'video_view'), 0);
+      const p95 = rows.reduce((s, r) => s + parseActionValue(r.video_p95_watched_actions, 'video_view'), 0);
       const p100 = rows.reduce((s, r) => s + parseActionValue(r.video_p100_watched_actions, 'video_view'), 0);
       const costPerThruPlay = rows.reduce((s, r) => s + parseActionValue(r.cost_per_thruplay, 'video_view'), 0) / rows.length;
+      // Use p25 as hook proxy (3s views not available in v21)
+      const hookRate = totalImpressions > 0 ? p25 / totalImpressions : 0;
+      const holdRate = p25 > 0 ? thruPlays / p25 : 0;
 
       videoRetention = {
-        plays: totalPlays,
-        p25: rows.reduce((s, r) => s + parseActionValue(r.video_p25_watched_actions, 'video_view'), 0),
-        p50: rows.reduce((s, r) => s + parseActionValue(r.video_p50_watched_actions, 'video_view'), 0),
-        p75: rows.reduce((s, r) => s + parseActionValue(r.video_p75_watched_actions, 'video_view'), 0),
-        p95: rows.reduce((s, r) => s + parseActionValue(r.video_p95_watched_actions, 'video_view'), 0),
-        p100,
+        plays: totalPlays, p25, p50, p75, p95, p100,
         avgWatchSeconds: rows.reduce((s, r) => s + parseActionValue(r.video_avg_time_watched_actions, 'video_view'), 0) / rows.length,
-        thruPlays,
-        threeSecViews,
-        hookRate: totalImpressions > 0 ? threeSecViews / totalImpressions : 0,
-        holdRate: threeSecViews > 0 ? thruPlays / threeSecViews : 0,
-        costPerThruPlay,
+        thruPlays, threeSecViews: p25, // p25 as proxy
+        hookRate, holdRate, costPerThruPlay,
       };
     }
 
