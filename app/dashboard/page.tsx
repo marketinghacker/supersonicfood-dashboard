@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Creative, TrafficLightStatus } from '../lib/config';
 import FilterBar from '../components/FilterBar';
+import DashboardLegend from '../components/DashboardLegend';
 import SummaryBar from '../components/SummaryBar';
 import ProductGroup from '../components/ProductGroup';
 import TraitsReport from '../components/TraitsReport';
@@ -112,6 +113,8 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         <FilterBar products={products} selectedProduct={selectedProduct} onProductChange={setSelectedProduct}
           selectedStatus={selectedStatus} onStatusChange={setSelectedStatus} sortBy={sortBy} onSortChange={setSortBy} />
+
+        <DashboardLegend />
 
         {!loading && videosOnly.length > 0 && <SummaryBar creatives={videosOnly} />}
 

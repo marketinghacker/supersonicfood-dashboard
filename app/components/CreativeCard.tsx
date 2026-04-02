@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { Creative } from '../lib/config';
-import LifecycleBadge from './LifecycleBadge';
+import LifecycleDetail from './LifecycleDetail';
 import EngagementBadge from './EngagementBadge';
 import SparklineChart from './SparklineChart';
 import VideoPlayer from './VideoPlayer';
@@ -77,11 +77,12 @@ export default function CreativeCard({ creative, onProductOverride }: CreativeCa
           <h3 className="text-base font-bold text-white truncate">{creative.name}</h3>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <LifecycleBadge
+            <LifecycleDetail
               stage={creative.lifecycleStage}
               trafficLight={creative.trafficLight}
               roas={creative.roas}
               spend={creative.spend}
+              weeklyBuckets={creative.weeklyBuckets}
             />
             <EngagementBadge quadrant={creative.engagementQuadrant} engagement={creative.engagement} compact />
           </div>
@@ -130,10 +131,13 @@ export default function CreativeCard({ creative, onProductOverride }: CreativeCa
       {/* Expanded view */}
       {expanded && (
         <div className="border-t border-gray-600 p-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <VideoPlayer videoUrl={creative.videoUrl} imageUrl={null} thumbnailUrl={creative.thumbnailUrl} name={creative.name} />
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* Video: fixed 300px for 9:16 Stories */}
+            <div className="w-full md:w-[300px] flex-shrink-0 self-start">
+              <VideoPlayer videoUrl={creative.videoUrl} imageUrl={null} thumbnailUrl={creative.thumbnailUrl} name={creative.name} />
+            </div>
 
-            <div className="space-y-5">
+            <div className="flex-1 min-w-0 space-y-5">
               {/* Metrics */}
               <div>
                 <h4 className="text-sm font-bold text-gray-200 uppercase tracking-wider mb-3">Metryki (60 dni)</h4>
