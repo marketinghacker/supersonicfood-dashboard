@@ -92,7 +92,7 @@ export async function analyzeCreative(creative: Creative): Promise<string> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 600 },
+      generationConfig: { temperature: 0.7 },
     }),
   });
 
@@ -142,7 +142,7 @@ Pamiętaj: UGC video dostarcza klient, copy/argumenty przygotowuje agencja.`;
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 1000 },
+      generationConfig: { temperature: 0.7 },
     }),
   });
 

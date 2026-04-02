@@ -16,20 +16,18 @@ export default function ProductGroup({ product, creatives, onProductOverride }: 
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between bg-gray-800/80 rounded-xl px-5 py-3 border border-gray-700/60">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold text-white">{product}</h2>
-          <span className="text-sm text-gray-400">({creatives.length} video)</span>
+          <h2 className="text-xl font-black text-white">{product}</h2>
+          <span className="text-base font-semibold text-gray-200">({creatives.length} video)</span>
         </div>
-        <div className="flex items-center gap-4 text-xs text-gray-500">
-          <span>Spend: <b className="text-gray-300">{totalSpend.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} PLN</b></span>
-          <span>ROAS: <b className={avgRoas >= 6 ? 'text-amber-400' : avgRoas >= 5 ? 'text-green-400' : avgRoas >= 4 ? 'text-yellow-400' : 'text-red-400'}>{avgRoas.toFixed(1)}x</b></span>
+        <div className="flex items-center gap-5 text-sm font-semibold text-gray-200">
+          <span>Spend: <b className="text-white font-bold">{totalSpend.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} PLN</b></span>
+          <span>ROAS: <b className={`font-black ${avgRoas >= 6 ? 'text-amber-300' : avgRoas >= 5 ? 'text-green-300' : avgRoas >= 4 ? 'text-yellow-300' : 'text-red-300'}`}>{avgRoas.toFixed(1)}x</b></span>
         </div>
       </div>
       <div className="grid grid-cols-1 gap-3">
-        {creatives.map(c => (
-          <CreativeCard key={c.id} creative={c} onProductOverride={onProductOverride} />
-        ))}
+        {creatives.map(c => <CreativeCard key={c.id} creative={c} onProductOverride={onProductOverride} />)}
       </div>
     </div>
   );

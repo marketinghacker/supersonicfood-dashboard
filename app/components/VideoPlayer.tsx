@@ -11,6 +11,22 @@ interface VideoPlayerProps {
 
 export default function VideoPlayer({ videoUrl, imageUrl, thumbnailUrl, name }: VideoPlayerProps) {
   const [playing, setPlaying] = useState(false);
+  const [error, setError] = useState(false);
+
+  if (error) {
+    return (
+      <div className="relative w-full aspect-[9/16] max-h-[500px] bg-gray-900 rounded-lg overflow-hidden flex flex-col items-center justify-center p-6">
+        <p className="text-base font-bold text-red-300 mb-2">Video niedostępne</p>
+        <p className="text-sm text-gray-200 mb-4 text-center">Link do video wygasł lub jest nieprawidłowy</p>
+        <button
+          onClick={() => { setError(false); setPlaying(true); }}
+          className="px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-500"
+        >
+          Spróbuj ponownie
+        </button>
+      </div>
+    );
+  }
 
   if (videoUrl && playing) {
     return (
@@ -19,8 +35,9 @@ export default function VideoPlayer({ videoUrl, imageUrl, thumbnailUrl, name }: 
           src={videoUrl}
           controls
           autoPlay
+          playsInline
           className="w-full h-full object-contain"
-          onError={() => setPlaying(false)}
+          onError={() => { setPlaying(false); setError(true); }}
         >
           Twoja przeglądarka nie wspiera odtwarzania video.
         </video>
@@ -42,10 +59,15 @@ export default function VideoPlayer({ videoUrl, imageUrl, thumbnailUrl, name }: 
       onClick={() => videoUrl && setPlaying(true)}
     >
       {thumbnailUrl ? (
-        <img src={thumbnailUrl} alt={name} className="w-full h-full object-cover" />
+        <img
+          src={thumbnailUrl}
+          alt={name}
+          className="w-full h-full object-cover"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
       ) : (
-        <div className="w-full h-full flex items-center justify-center text-gray-500">
-          Brak podglądu
+        <div className="w-full h-full flex items-center justify-center text-gray-200 text-base font-bold">
+          {name}
         </div>
       )}
       {videoUrl && (
@@ -55,6 +77,11 @@ export default function VideoPlayer({ videoUrl, imageUrl, thumbnailUrl, name }: 
               <path d="M8 5v14l11-7z" />
             </svg>
           </div>
+        </div>
+      )}
+      {!videoUrl && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+          <p className="text-base font-bold text-gray-200">Brak video URL</p>
         </div>
       )}
     </div>

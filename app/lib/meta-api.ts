@@ -235,8 +235,13 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
 
 function calcLifecycleStage(buckets: WeeklyBucket[], totalSpend: number): LifecycleStage {
   if (buckets.length < 2) return 'new';
+  if (totalSpend < 200) return 'new'; // Not enough data for lifecycle
 
-  const recent = buckets.slice(-3); // last 3 weeks
+  // Only consider weeks with actual spend
+  const activeBuckets = buckets.filter(b => b.spend > 0);
+  if (activeBuckets.length < 2) return 'new';
+
+  const recent = activeBuckets.slice(-3);
   const roasValues = recent.map(b => b.roas);
   const spendValues = recent.map(b => b.spend);
 

@@ -22,38 +22,36 @@ export default function SummaryBar({ creatives }: { creatives: Creative[] }) {
   const avgRoas = totalSpend > 0 ? totalRevenue / totalSpend : 0;
 
   return (
-    <div className="bg-gray-800/50 backdrop-blur rounded-xl border border-gray-700/50 p-4">
+    <div className="bg-gray-800/90 backdrop-blur rounded-2xl border-2 border-gray-600/60 p-6">
       <div className="flex flex-wrap items-center gap-6">
-        {/* Lifecycle counts */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {Object.entries(LIFECYCLE_LABELS).map(([stage, cfg]) => {
             const count = lifecycleCounts.get(stage) || 0;
             if (count === 0) return null;
             return (
-              <div key={stage} className="flex items-center gap-1 text-sm">
+              <div key={stage} className="flex items-center gap-1.5 text-base">
                 <span>{cfg.emoji}</span>
-                <span className="font-bold text-white">{count}</span>
-                <span className="text-gray-500 text-xs hidden md:inline">{cfg.label}</span>
+                <span className="font-black text-white">{count}</span>
+                <span className="text-gray-200 text-sm font-semibold">{cfg.label}</span>
               </div>
             );
           })}
         </div>
 
-        <div className="h-6 w-px bg-gray-700" />
+        <div className="h-8 w-px bg-gray-500" />
 
-        {/* Totals */}
-        <div className="flex items-center gap-6 text-sm">
+        <div className="flex items-center gap-6 text-base">
           <div>
-            <span className="text-gray-400">Spend (60d): </span>
-            <span className="font-bold text-white">{totalSpend.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} PLN</span>
+            <span className="text-gray-200 font-semibold">Spend (60d): </span>
+            <span className="font-black text-white">{totalSpend.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} PLN</span>
           </div>
           <div>
-            <span className="text-gray-400">ROAS: </span>
-            <span className="font-bold text-white">{avgRoas.toFixed(1)}x</span>
+            <span className="text-gray-200 font-semibold">ROAS: </span>
+            <span className="font-black text-white">{avgRoas.toFixed(1)}x</span>
           </div>
           <div>
-            <span className="text-gray-400">Video: </span>
-            <span className="font-bold text-white">{creatives.length}</span>
+            <span className="text-gray-200 font-semibold">Video: </span>
+            <span className="font-black text-white">{creatives.length}</span>
           </div>
         </div>
       </div>
