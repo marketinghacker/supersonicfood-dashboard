@@ -88,7 +88,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <img src="/supersonic-logo.png" alt="SUPERSONIC" className="h-10 w-auto invert" />
+              <img src="/supersonic-logo.png" alt="SUPERSONIC" className="h-14 w-auto invert" />
               <span className="text-gray-200 text-base font-semibold">Creative Dashboard</span>
             </div>
             <div className="flex items-center gap-4">
