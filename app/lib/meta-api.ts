@@ -111,7 +111,7 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
     const batch = adIds.slice(i, i + 50);
     const batchRequests = batch.map(adId => ({
       method: 'GET',
-      relative_url: `${adId}/adcreatives?fields=object_story_spec,thumbnail_url,image_url,asset_feed_spec`,
+      relative_url: `${adId}/adcreatives?fields=object_story_spec,thumbnail_url,image_url,asset_feed_spec,video_id`,
     }));
 
     try {
@@ -145,11 +145,17 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
         const storySpec = creative.object_story_spec;
         const afs = creative.asset_feed_spec;
 
+        // Capture video_id from top-level creative field
+        if (creative.video_id) {
+          videoUrl = creative.video_id;
+          creativeType = 'video';
+        }
+
         if (storySpec?.video_data) {
           const vd = storySpec.video_data;
           destinationUrl = vd.call_to_action?.value?.link || '';
           if (vd.image_url) thumbnailUrl = vd.image_url;
-          if (vd.video_id) videoUrl = vd.video_id;
+          if (vd.video_id && !videoUrl) videoUrl = vd.video_id;
           creativeType = 'video';
         } else if (storySpec?.link_data) {
           const ld = storySpec.link_data;
@@ -180,7 +186,7 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
     }
   }
 
-  // Resolve video IDs to source URLs
+  // Resolve video IDs to source URLs via advideos endpoint
   const videoIds = new Set<string>();
   for (const [, data] of result) {
     if (data.videoUrl && !data.videoUrl.startsWith('http')) {
@@ -189,55 +195,25 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
   }
 
   if (videoIds.size > 0) {
+    // Use advideos endpoint (has source access, unlike direct /{video_id})
     const videoMap = new Map<string, string>();
-    const videoIdArr = Array.from(videoIds);
+    let advUrl: string | null = `${META_BASE_URL}/${ACCOUNT_ID}/advideos?fields=id,source&limit=100&access_token=${TOKEN}`;
 
-    // Try batch first
-    for (let i = 0; i < videoIdArr.length; i += 50) {
-      const batch = videoIdArr.slice(i, i + 50);
-      const batchRequests = batch.map(vid => ({
-        method: 'GET',
-        relative_url: `${vid}?fields=source`,
-      }));
-
+    while (advUrl) {
       try {
-        const batchRes = await fetch(`${META_BASE_URL}/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            access_token: TOKEN,
-            batch: JSON.stringify(batchRequests),
-          }),
-        });
-
-        if (batchRes.ok) {
-          const batchJson: Array<{ code: number; body: string }> = await batchRes.json();
-          for (let j = 0; j < batchJson.length; j++) {
-            if (batchJson[j].code === 200) {
-              const body = JSON.parse(batchJson[j].body);
-              if (body.source) videoMap.set(batch[j], body.source);
-            }
+        const res: Response = await fetch(advUrl, { next: { revalidate: 0 } });
+        if (!res.ok) break;
+        const json = await res.json();
+        for (const v of (json.data || [])) {
+          if (v.source && videoIds.has(v.id)) {
+            videoMap.set(v.id, v.source);
           }
         }
-      } catch (err) {
-        console.error('Batch video resolve error:', err);
-      }
-    }
-
-    // Fallback: individual requests for videos that batch didn't resolve
-    for (const vid of videoIdArr) {
-      if (videoMap.has(vid)) continue;
-      try {
-        const res = await fetch(
-          `${META_BASE_URL}/${vid}?fields=source&access_token=${TOKEN}`,
-          { next: { revalidate: 0 } }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          if (data.source) videoMap.set(vid, data.source);
-        }
+        // Stop if we've found all needed videos
+        if (videoMap.size >= videoIds.size) break;
+        advUrl = json.paging?.next || null;
       } catch {
-        // Individual request failed too
+        break;
       }
     }
 
@@ -245,7 +221,7 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
       if (data.videoUrl && videoMap.has(data.videoUrl)) {
         data.videoUrl = videoMap.get(data.videoUrl)!;
       } else if (data.videoUrl && !data.videoUrl.startsWith('http')) {
-        data.videoUrl = null; // Truly unavailable
+        data.videoUrl = null;
       }
     }
   }
