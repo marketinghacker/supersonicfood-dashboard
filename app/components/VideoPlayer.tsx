@@ -9,9 +9,18 @@ interface VideoPlayerProps {
   name: string;
 }
 
+function getFbVideoId(url: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith('fb:')) return url.slice(3);
+  return null;
+}
+
 export default function VideoPlayer({ videoUrl, imageUrl, thumbnailUrl, name }: VideoPlayerProps) {
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState(false);
+
+  const fbVideoId = getFbVideoId(videoUrl);
+  const isDirectUrl = videoUrl && videoUrl.startsWith('http');
 
   if (error) {
     return (
@@ -28,7 +37,22 @@ export default function VideoPlayer({ videoUrl, imageUrl, thumbnailUrl, name }: 
     );
   }
 
-  if (videoUrl && playing) {
+  // Facebook embedded player
+  if (fbVideoId && playing) {
+    return (
+      <div className="relative w-full aspect-[9/16] max-h-[500px] bg-black rounded-lg overflow-hidden">
+        <iframe
+          src={`https://www.facebook.com/plugins/video.php?href=https://www.facebook.com/watch/?v=${fbVideoId}&show_text=false&autoplay=true`}
+          className="w-full h-full border-0"
+          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  // Direct MP4 player
+  if (isDirectUrl && playing) {
     return (
       <div className="relative w-full aspect-[9/16] max-h-[500px] bg-black rounded-lg overflow-hidden">
         <video
@@ -45,18 +69,13 @@ export default function VideoPlayer({ videoUrl, imageUrl, thumbnailUrl, name }: 
     );
   }
 
-  if (imageUrl && !videoUrl) {
-    return (
-      <div className="relative w-full aspect-square max-h-[500px] bg-gray-900 rounded-lg overflow-hidden">
-        <img src={imageUrl} alt={name} className="w-full h-full object-contain" />
-      </div>
-    );
-  }
+  // Thumbnail with play button
+  const hasVideo = fbVideoId || isDirectUrl;
 
   return (
     <div
-      className="relative w-full aspect-[9/16] max-h-[500px] bg-gray-900 rounded-lg overflow-hidden cursor-pointer group"
-      onClick={() => videoUrl && setPlaying(true)}
+      className={`relative w-full aspect-[9/16] max-h-[500px] bg-gray-900 rounded-lg overflow-hidden ${hasVideo ? 'cursor-pointer group' : ''}`}
+      onClick={() => hasVideo && setPlaying(true)}
     >
       {thumbnailUrl ? (
         <img
@@ -66,11 +85,11 @@ export default function VideoPlayer({ videoUrl, imageUrl, thumbnailUrl, name }: 
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center text-gray-200 text-base font-bold">
+        <div className="w-full h-full flex items-center justify-center text-gray-200 text-base font-bold p-4 text-center">
           {name}
         </div>
       )}
-      {videoUrl && (
+      {hasVideo && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
           <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
             <svg className="w-8 h-8 text-gray-900 ml-1" fill="currentColor" viewBox="0 0 24 24">
@@ -79,9 +98,9 @@ export default function VideoPlayer({ videoUrl, imageUrl, thumbnailUrl, name }: 
           </div>
         </div>
       )}
-      {!videoUrl && (
+      {!hasVideo && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <p className="text-base font-bold text-gray-200">Brak video URL</p>
+          <p className="text-base font-bold text-gray-200">Brak video</p>
         </div>
       )}
     </div>

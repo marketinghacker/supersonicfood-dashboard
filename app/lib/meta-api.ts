@@ -186,44 +186,12 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
     }
   }
 
-  // Resolve video IDs to source URLs via advideos endpoint
-  const videoIds = new Set<string>();
+  // For videos: store video_id as fb:VIDEO_ID for Facebook embed player
+  // Direct source URLs require page permissions we don't have
   for (const [, data] of result) {
     if (data.videoUrl && !data.videoUrl.startsWith('http')) {
-      videoIds.add(data.videoUrl);
-    }
-  }
-
-  if (videoIds.size > 0) {
-    // Use advideos endpoint (has source access, unlike direct /{video_id})
-    const videoMap = new Map<string, string>();
-    let advUrl: string | null = `${META_BASE_URL}/${ACCOUNT_ID}/advideos?fields=id,source&limit=200&access_token=${TOKEN}`;
-    let pages = 0;
-
-    while (advUrl && pages < 3) {
-      pages++;
-      try {
-        const res: Response = await fetch(advUrl, { next: { revalidate: 0 } });
-        if (!res.ok) break;
-        const json = await res.json();
-        for (const v of (json.data || [])) {
-          if (v.source && videoIds.has(v.id)) {
-            videoMap.set(v.id, v.source);
-          }
-        }
-        if (videoMap.size >= videoIds.size) break;
-        advUrl = json.paging?.next || null;
-      } catch {
-        break;
-      }
-    }
-
-    for (const [, data] of result) {
-      if (data.videoUrl && videoMap.has(data.videoUrl)) {
-        data.videoUrl = videoMap.get(data.videoUrl)!;
-      } else if (data.videoUrl && !data.videoUrl.startsWith('http')) {
-        data.videoUrl = null;
-      }
+      // Store as special format for Facebook embed
+      data.videoUrl = `fb:${data.videoUrl}`;
     }
   }
 
