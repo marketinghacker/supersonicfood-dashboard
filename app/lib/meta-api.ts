@@ -149,9 +149,6 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
         if (creative.video_id) {
           videoUrl = String(creative.video_id);
           creativeType = 'video';
-          console.log(`[VIDEO] Ad ${adId}: found video_id=${creative.video_id}`);
-        } else {
-          console.log(`[VIDEO] Ad ${adId}: NO video_id. Keys: ${Object.keys(creative).join(',')}`);
         }
 
         if (storySpec?.video_data) {
@@ -190,18 +187,11 @@ async function fetchCreativeDetails(adIds: string[]): Promise<Map<string, Creati
   }
 
   // For videos: store video_id as fb:VIDEO_ID for Facebook embed player
-  let resolved = 0;
-  let unresolved = 0;
-  for (const [adId, data] of result) {
+  for (const [, data] of result) {
     if (data.videoUrl && !data.videoUrl.startsWith('http') && !data.videoUrl.startsWith('fb:')) {
       data.videoUrl = `fb:${data.videoUrl}`;
-      resolved++;
-    } else if (!data.videoUrl && data.creativeType === 'video') {
-      unresolved++;
-      console.log(`[VIDEO] Ad ${adId}: video type but no videoUrl`);
     }
   }
-  console.log(`[VIDEO] Resolved: ${resolved}, Unresolved: ${unresolved}, Total: ${result.size}`);
 
   return result;
 }
